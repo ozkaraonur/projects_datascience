@@ -1,29 +1,53 @@
-#Which hour has the highest frequency of crimes? Store as an integer variable called peak_crime_hour.
-peak_crime_hour = crimes["TIME OCC"].value_counts(normalize=True).idxmax()
-print(peak_crime_hour)
+# Import required libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-#Which area has the largest frequency of night crimes (crimes committed between 10pm and 3:59am)? Save as a string variable called peak_night_crime_location.
+# Read in and preview the dataset
+crimes = pd.read_csv("crimes.csv", parse_dates=["Date Rptd", "DATE OCC"], dtype={"TIME OCC": str})
+crimes.head()
 
-#Define night hours
-after_midnight = crimes[(crimes["TIME OCC"] <= "0359") & (crimes["TIME OCC"] >= "0000")]
-before_midnight = crimes[(crimes["TIME OCC"] >= "2200") & (crimes["TIME OCC"] <= "2359")]
+## Which hour has the highest frequency of crimes? Store as an integer variable called peak_crime_hour
 
-#Combine crimes occurring before and after midnight into a single DataFrame & find the area with the highest proportion of night crimes
-night_crime = pd.concat([before_midnight, after_midnight])
-peak_night_crime_location = night_crime["AREA NAME"].value_counts(normalize=True).idxmax()
-print(peak_night_crime_location)
+# Extract the first two digits from "TIME OCC", representing the hour,
+# and convert to integer data type
+crimes["HOUR OCC"] = crimes["TIME OCC"].str[:2].astype(int)
 
-#Identify the number of crimes committed against victims of different age groups. Save as a pandas Series called victim_ages, with age group labels "0-17", "18-25", "26-34", "35-44", "45-54", "55-64", and "65+" as the index and the frequency of crimes as the values.
+# Preview the DataFrame to confirm the new column is correct
+crimes.head()
 
-# Define the age groups
-age_bins = [0, 17, 25, 34, 44, 54, 64, float('inf')]
+# Produce a countplot to find the largest frequency of crimes by hour
+sns.countplot(data=crimes, x="HOUR OCC")
+plt.show()
+
+# Midday has the largest volume of crime
+peak_crime_hour = 12
+
+## Which area has the largest frequency of night crimes (crimes committed between 10pm and 3:59am)? 
+## Save as a string variable called peak_night_crime_location
+# Filter for the night-time hours
+# 0 = midnight; 3 = crimes between 3am and 3:59am, i.e., don't include 4
+night_time = crimes[crimes["HOUR OCC"].isin([22,23,0,1,2,3])]
+
+# Group by "AREA NAME" and count occurrences, filtering for the largest value and saving the "AREA NAME"
+peak_night_crime_location = night_time.groupby("AREA NAME", 
+                                               as_index=False)["HOUR OCC"].count().sort_values("HOUR OCC",
+                                                                                               ascending=False).iloc[0]["AREA NAME"]
+# Print the peak night crime location
+print(f"The area with the largest volume of night crime is {peak_night_crime_location}")
+
+## Identify the number of crimes committed against victims by age group (0-17, 18-25, 26-34, 35-44, 45-54, 55-64, 65+) 
+## Save as a pandas Series called victim_ages
+# Create bins and labels for victim age ranges
+age_bins = [0, 17, 25, 34, 44, 54, 64, np.inf]
 age_labels = ["0-17", "18-25", "26-34", "35-44", "45-54", "55-64", "65+"]
 
-# Categorize victim ages into age groups
-crimes['Age Group'] = pd.cut(crimes['Vict Age'], bins=age_bins, labels=age_labels)
+# Add a new column using pd.cut() to bin values into discrete intervals
+crimes["Age Bracket"] = pd.cut(crimes["Vict Age"],
+                               bins=age_bins,
+                               labels=age_labels)
 
-# Count the number of crimes in each age group
-victim_ages = crimes['Age Group'].value_counts()
-
-# Display the results
+# Find the category with the largest frequency
+victim_ages = crimes["Age Bracket"].value_counts()
 print(victim_ages)
